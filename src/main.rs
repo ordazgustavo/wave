@@ -11,19 +11,32 @@ mod package;
 use cli::Wave;
 
 fn init(name: Option<String>) {
+    // Use provided name
+    // If the name is not provided attempt to use the cwd name
+    // Else, set name as empty string, should we just throw an error?
     let name = name.unwrap_or(fs::cwd().unwrap_or(String::new()));
     let package = package::Package {
         name: name.to_owned(),
         ..package::Package::default()
     };
+    let package = package.to_json();
 
-    let path = &Path::new("package.json");
+    match package {
+        Ok(package) => {
+            let path = &Path::new("package.json");
+            let package_file = fs::echo(&package, path);
 
-    match fs::echo(&package.to_string(), path) {
-        Ok(_) => logger::success("Saved package.json"),
-        Err(why) => {
+            match package_file {
+                Ok(_) => logger::success("Saved package.json"),
+                Err(error) => {
+                    logger::error("Creating package.json");
+                    println!("! {:?}", error.kind());
+                }
+            }
+        }
+        Err(error) => {
             logger::error("Creating package.json");
-            println!("! {:?}", why.kind());
+            println!("! {:?}", error.classify());
         }
     }
 }

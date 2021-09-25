@@ -1,5 +1,7 @@
-use std::fmt;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 
+#[derive(Deserialize, Serialize)]
 pub struct Package {
     pub name: String,
     pub version: Option<String>,
@@ -8,9 +10,9 @@ pub struct Package {
     pub license: Option<String>,
 }
 
-impl fmt::Display for Package {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\n  \"name\": \"{}\"\n}}", self.name)
+impl Package {
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string_pretty(self)
     }
 }
 
