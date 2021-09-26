@@ -28,12 +28,12 @@ impl Package {
 impl Default for Package {
     fn default() -> Self {
         Self {
-            name: Some(String::new()),
+            name: Some(String::from("")),
             version: Some(String::from("1.0.0")),
             main: Some(String::from("index.js")),
-            author: Some(String::new()),
+            author: Some(String::from("")),
             license: Some(String::from("MIT")),
-            ..Default::default()
+            dependencies: None,
         }
     }
 }

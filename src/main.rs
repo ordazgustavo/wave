@@ -1,7 +1,7 @@
-use std::io::{self, Write};
+use std::io::Write;
 use std::time::Instant;
 
-use structopt::StructOpt;
+use console::{Emoji, Term};
 
 mod cli;
 mod fs;
@@ -15,12 +15,11 @@ use cli::Wave;
 use crate::init::init;
 use crate::install::install;
 
-fn main() -> anyhow::Result<()> {
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
+static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
-    let args = Wave::from_args();
-
+#[paw::main]
+fn main(args: Wave) -> anyhow::Result<()> {
+    let term = Term::stdout();
     let now = Instant::now();
 
     let result = match args {
@@ -35,8 +34,13 @@ fn main() -> anyhow::Result<()> {
         _ => todo!(),
     };
 
-    writeln!(handle, "{}", result)?;
-    writeln!(handle, "✨ Done in {}s.", now.elapsed().as_secs_f32())?;
+    writeln!(&term, "{}", result)?;
+    writeln!(
+        &term,
+        "{} Done in {}s.",
+        SPARKLE,
+        now.elapsed().as_secs_f32()
+    )?;
 
     Ok(())
 }
