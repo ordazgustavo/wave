@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Result;
@@ -12,7 +12,9 @@ pub struct Package {
     pub author: Option<String>,
     pub license: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub dependencies: Option<HashMap<String, String>>,
+    pub dependencies: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dev_dependencies: Option<BTreeMap<String, String>>,
 }
 
 impl Package {
@@ -34,6 +36,7 @@ impl Default for Package {
             author: Some(String::from("")),
             license: Some(String::from("MIT")),
             dependencies: None,
+            dev_dependencies: None,
         }
     }
 }

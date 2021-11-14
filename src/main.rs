@@ -13,7 +13,7 @@ mod package;
 use cli::Wave;
 
 use crate::init::init;
-use crate::install::install;
+use crate::install::{install, InstallFlags};
 
 static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
@@ -25,10 +25,10 @@ fn main(args: Wave) -> anyhow::Result<()> {
     let result = match args {
         Wave::Init { yes: _, name } => init(name)?,
         Wave::Install {
-            development: _,
-            exact: _,
+            development,
+            exact,
             packages,
-        } => install(packages)?,
+        } => install(packages, InstallFlags { development, exact })?,
         // Wave::List { packages } => todo!(),
         // Wave::Uninstall { packages } => todo!(),
         _ => todo!(),
