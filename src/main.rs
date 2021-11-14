@@ -12,18 +12,18 @@ mod package;
 
 use cli::Wave;
 
-use crate::init::init;
+use crate::init::{init, InitFlags};
 use crate::install::{install, InstallFlags};
 
 static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
 #[paw::main]
 fn main(args: Wave) -> anyhow::Result<()> {
-    let term = Term::stdout();
+    let mut term = Term::stdout();
     let now = Instant::now();
 
     let result = match args {
-        Wave::Init { yes: _, name } => init(name)?,
+        Wave::Init { yes, name } => init(&mut term, name, InitFlags { yes })?,
         Wave::Install {
             development,
             exact,
