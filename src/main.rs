@@ -1,7 +1,6 @@
-use std::io::Write;
 use std::time::Instant;
 
-use console::{Emoji, Term};
+use console::Term;
 
 mod cli;
 mod fs;
@@ -9,38 +8,39 @@ mod init;
 mod install;
 mod logger;
 mod package;
+mod registry;
 
 use cli::Wave;
 
 use crate::init::{init, InitFlags};
 use crate::install::{install, InstallFlags};
 
-static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
+pub struct WaveContext {
+    pub term: Term,
+    pub client: reqwest::Client,
+}
 
 #[paw::main]
-fn main(args: Wave) -> anyhow::Result<()> {
-    let mut term = Term::stdout();
+#[tokio::main]
+async fn main(args: Wave) -> anyhow::Result<()> {
+    let term = Term::stdout();
+    let client = reqwest::Client::new();
+    let ctx = WaveContext { term, client };
     let now = Instant::now();
 
-    let result = match args {
-        Wave::Init { yes, name } => init(&mut term, name, InitFlags { yes })?,
+    match args {
+        Wave::Init { yes, name } => init(&ctx, name, InitFlags { yes })?,
         Wave::Install {
             development,
             exact,
             packages,
-        } => install(packages, InstallFlags { development, exact })?,
+        } => install(&ctx, packages, InstallFlags { development, exact }).await?,
         // Wave::List { packages } => todo!(),
         // Wave::Uninstall { packages } => todo!(),
         _ => todo!(),
     };
 
-    writeln!(&term, "{}", result)?;
-    writeln!(
-        &term,
-        "{} Done in {}s.",
-        SPARKLE,
-        now.elapsed().as_secs_f32()
-    )?;
+    logger::done(&ctx, now.elapsed().as_secs_f32())?;
 
     Ok(())
 }
