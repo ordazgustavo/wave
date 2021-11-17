@@ -23,3 +23,6 @@ paw = "1.0"
 reqwest = { version = "0.11.6", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 void = "1.0.2"
+flate2 = "1.0.22"
+tar = "0.4.37"
+bytes = "1.1.0"

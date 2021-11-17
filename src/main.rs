@@ -8,6 +8,7 @@ mod init;
 mod install;
 mod logger;
 mod package;
+mod packument;
 mod registry;
 
 use cli::Wave;
