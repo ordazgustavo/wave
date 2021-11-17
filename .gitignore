@@ -1,6 +1,14 @@
 /target
 
+# Caches
+.npm
+.wave
+
+# Modules
 node_modules
+
+# Package managers
 package.json
 package-lock.json
 yarn.lock
+.npmrc
