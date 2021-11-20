@@ -11,8 +11,7 @@ mod package;
 mod packument;
 mod registry;
 
-use cli::Wave;
-
+use crate::cli::{Command, Wave};
 use crate::init::{init, InitFlags};
 use crate::install::{install, InstallFlags};
 
@@ -29,16 +28,29 @@ async fn main(args: Wave) -> anyhow::Result<()> {
     let ctx = WaveContext { term, client };
     let now = Instant::now();
 
-    match args {
-        Wave::Init { yes, name } => init(&ctx, name, InitFlags { yes })?,
-        Wave::Install {
-            development,
-            exact,
-            packages,
-        } => install(&ctx, packages, InstallFlags { development, exact }).await?,
-        // Wave::List { packages } => todo!(),
-        // Wave::Uninstall { packages } => todo!(),
-        _ => todo!(),
+    let cmd = args.cmd;
+
+    match cmd {
+        Some(cmd) => match cmd {
+            Command::Init { yes, name } => init(&ctx, name, InitFlags { yes })?,
+            Command::Install {
+                development,
+                exact,
+                packages,
+            } => install(&ctx, packages, InstallFlags { development, exact }).await?,
+            _ => todo!(),
+        },
+        None => {
+            install(
+                &ctx,
+                Vec::new(),
+                InstallFlags {
+                    development: false,
+                    exact: false,
+                },
+            )
+            .await?
+        }
     };
 
     logger::done(&ctx, now.elapsed().as_secs_f32())?;

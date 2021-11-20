@@ -2,7 +2,13 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "A JavaScript package manager.")]
-pub enum Wave {
+pub struct Wave {
+    #[structopt(subcommand)]
+    pub cmd: Option<Command>,
+}
+
+#[derive(Debug, StructOpt)]
+pub enum Command {
     Init {
         #[structopt(short, long)]
         yes: bool,
