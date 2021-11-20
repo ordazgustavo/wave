@@ -12,21 +12,21 @@ use crate::{
     registry, WaveContext,
 };
 
-pub struct InstallFlags {
+pub struct AddFlags {
     pub development: bool,
     pub exact: bool,
 }
 
-pub async fn install(
+pub async fn add(
     ctx: &WaveContext,
     packages: Vec<(String, String)>,
-    flags: InstallFlags,
+    flags: AddFlags,
 ) -> Result<()> {
     let package_path = Path::new("package.json");
     let package = cat(package_path)?;
     let mut package = Package::from_json(&package)?;
 
-    let mut updated_versions = BTreeMap::<_, _>::new();
+    let mut updated_versions = BTreeMap::new();
     for (name, version) in packages.into_iter() {
         let packument = registry::get_package_data(&ctx, &name, &version).await?;
         updated_versions.insert(name, packument.version);

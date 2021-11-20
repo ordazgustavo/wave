@@ -9,12 +9,7 @@ pub struct Wave {
 
 #[derive(Debug, StructOpt)]
 pub enum Command {
-    Init {
-        #[structopt(short, long)]
-        yes: bool,
-        name: Option<String>,
-    },
-    Install {
+    Add {
         #[structopt(short = "D", long = "save-dev")]
         development: bool,
         #[structopt(short = "E", long = "save-exact")]
@@ -22,6 +17,12 @@ pub enum Command {
         #[structopt(parse(from_str = parse_key_val))]
         packages: Vec<(String, String)>,
     },
+    Init {
+        #[structopt(short, long)]
+        yes: bool,
+        name: Option<String>,
+    },
+    Install,
     List {
         #[structopt(parse(from_str = parse_key_val))]
         packages: Vec<(String, String)>,

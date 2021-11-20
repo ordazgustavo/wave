@@ -2,18 +2,18 @@ use std::time::Instant;
 
 use console::Term;
 
+mod add;
 mod cli;
 mod fs;
 mod init;
-mod install;
 mod logger;
 mod package;
 mod packument;
 mod registry;
 
+use crate::add::{add, AddFlags};
 use crate::cli::{Command, Wave};
 use crate::init::{init, InitFlags};
-use crate::install::{install, InstallFlags};
 
 pub struct WaveContext {
     pub term: Term,
@@ -33,18 +33,18 @@ async fn main(args: Wave) -> anyhow::Result<()> {
     match cmd {
         Some(cmd) => match cmd {
             Command::Init { yes, name } => init(&ctx, name, InitFlags { yes })?,
-            Command::Install {
+            Command::Add {
                 development,
                 exact,
                 packages,
-            } => install(&ctx, packages, InstallFlags { development, exact }).await?,
+            } => add(&ctx, packages, AddFlags { development, exact }).await?,
             _ => todo!(),
         },
         None => {
-            install(
+            add(
                 &ctx,
                 Vec::new(),
-                InstallFlags {
+                AddFlags {
                     development: false,
                     exact: false,
                 },
