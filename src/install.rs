@@ -17,21 +17,17 @@ pub struct InstallFlags {
     pub exact: bool,
 }
 
-pub async fn install(ctx: &WaveContext, packages: Vec<String>, flags: InstallFlags) -> Result<()> {
+pub async fn install(
+    ctx: &WaveContext,
+    packages: Vec<(String, String)>,
+    flags: InstallFlags,
+) -> Result<()> {
     let package_path = Path::new("package.json");
     let package = cat(package_path)?;
     let mut package = Package::from_json(&package)?;
 
-    let mut deps = BTreeMap::<String, String>::new();
-    for key in packages.into_iter() {
-        let pkg: Vec<_> = key.split('@').collect();
-        let name = pkg[0].to_string();
-        let version = (*pkg.get(1).unwrap_or(&"latest")).to_string();
-        deps.insert(name, version);
-    }
-
     let mut updated_versions = BTreeMap::<_, _>::new();
-    for (name, version) in deps.into_iter() {
+    for (name, version) in packages.into_iter() {
         let packument = registry::get_package_data(&ctx, &name, &version).await?;
         updated_versions.insert(name, packument.version);
         let bytes = ctx

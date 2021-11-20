@@ -19,12 +19,23 @@ pub enum Command {
         development: bool,
         #[structopt(short = "E", long = "save-exact")]
         exact: bool,
-        packages: Vec<String>,
+        #[structopt(parse(from_str = parse_key_val))]
+        packages: Vec<(String, String)>,
     },
     List {
-        packages: Vec<String>,
+        #[structopt(parse(from_str = parse_key_val))]
+        packages: Vec<(String, String)>,
     },
     Uninstall {
-        packages: Vec<String>,
+        #[structopt(parse(from_str = parse_key_val))]
+        packages: Vec<(String, String)>,
     },
+}
+
+fn parse_key_val(s: &str) -> (String, String) {
+    if let Some((key, val)) = s.rsplit_once('@') {
+        (key.to_string(), val.to_string())
+    } else {
+        (s.to_string(), "latest".to_string())
+    }
 }
