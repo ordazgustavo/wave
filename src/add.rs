@@ -1,15 +1,12 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{collections::BTreeMap, path::Path};
 
 use anyhow::Result;
-use bytes::Buf;
-use flate2::read::GzDecoder;
-use tar::Archive;
 
 use crate::{
     fs::{cat, echo},
     logger,
     package::Package,
-    registry, WaveContext,
+    registry, utils, WaveContext,
 };
 
 pub struct AddFlags {
@@ -30,31 +27,9 @@ pub async fn add(
     for (name, version) in packages.into_iter() {
         let packument = registry::get_package_data(&ctx, &name, &version).await?;
         updated_versions.insert(name, packument.version);
-        let bytes = ctx
-            .client
-            .get(packument.dist.tarball)
-            .send()
-            .await?
-            .bytes()
-            .await?;
-        let tar = GzDecoder::new(bytes.reader());
-        let mut archive = Archive::new(tar);
-
-        let prefix = "package";
-        let node_modules = format!("node_modules/{}", packument.name);
-        let dest = Path::new(&node_modules);
-        fs::create_dir_all(dest)?;
-
-        for mut entry in archive.entries()?.filter_map(|e| e.ok()).into_iter() {
-            let path = entry.path()?.strip_prefix(prefix)?.to_owned();
-            if let Some(parent) = path.parent() {
-                let nm_inner_dir = Path::new(&node_modules).join(parent);
-                if !nm_inner_dir.exists() {
-                    fs::create_dir_all(nm_inner_dir)?;
-                }
-            }
-            entry.unpack(dest.join(path))?;
-        }
+        let bytes = utils::get_package_tarball(&ctx, &packument.dist.tarball).await?;
+        let mut archive = utils::decode_tarball(bytes);
+        utils::save_package_in_node_modules(&packument.name, &mut archive)?;
     }
 
     if flags.development {
