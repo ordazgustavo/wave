@@ -4,12 +4,11 @@ use console::Term;
 
 mod add;
 mod cli;
+mod definitions;
 mod fs;
 mod init;
 mod install;
 mod logger;
-mod package;
-mod packument;
 mod registry;
 mod utils;
 

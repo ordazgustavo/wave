@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::{fs, logger, package::Package, WaveContext};
+use crate::{definitions::Package, fs, logger, WaveContext};
 
 pub struct InitFlags {
     pub yes: bool,

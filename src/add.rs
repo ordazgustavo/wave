@@ -3,10 +3,9 @@ use std::{collections::BTreeMap, path::Path};
 use anyhow::Result;
 
 use crate::{
+    definitions::Package,
     fs::{cat, echo},
-    logger,
-    package::Package,
-    registry, utils, WaveContext,
+    logger, utils, WaveContext,
 };
 
 pub struct AddFlags {
@@ -19,18 +18,15 @@ pub async fn add(
     packages: Vec<(String, String)>,
     flags: AddFlags,
 ) -> Result<()> {
+    let mut updated_versions = BTreeMap::new();
+    for (name, version) in packages.into_iter() {
+        let installed_version = utils::get_dependency_tree(&ctx, &name, &version).await?;
+        updated_versions.insert(name, installed_version);
+    }
+
     let package_path = Path::new("package.json");
     let package = cat(package_path)?;
     let mut package = Package::from_json(&package)?;
-
-    let mut updated_versions = BTreeMap::new();
-    for (name, version) in packages.into_iter() {
-        let packument = registry::get_package_data(&ctx, &name, &version).await?;
-        updated_versions.insert(name, packument.version);
-        let bytes = utils::get_package_tarball(&ctx, &packument.dist.tarball).await?;
-        let mut archive = utils::decode_tarball(bytes);
-        utils::save_package_in_node_modules(&packument.name, &mut archive)?;
-    }
 
     if flags.development {
         if let Some(mut prev_deps) = package.dev_dependencies {

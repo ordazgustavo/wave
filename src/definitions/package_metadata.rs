@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Packument {
+pub struct PackageMetadata {
     pub name: String,
     pub version: String,
+    pub dependencies: Option<HashMap<String, String>>,
     pub dist: Dist,
 }
 
@@ -12,5 +14,5 @@ pub struct Packument {
 pub struct Dist {
     pub tarball: String,
     pub shasum: String,
-    pub integrity: String,
+    pub integrity: Option<String>,
 }

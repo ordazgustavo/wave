@@ -2,11 +2,12 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
+use async_recursion::async_recursion;
 use bytes::{buf::Reader, Buf, Bytes};
 use flate2::read::GzDecoder;
 use tar::Archive;
 
-use crate::WaveContext;
+use crate::{registry, WaveContext};
 
 pub fn decode_tarball(bytes: Bytes) -> Archive<GzDecoder<Reader<Bytes>>> {
     let tar = GzDecoder::new(bytes.reader());
@@ -39,4 +40,29 @@ where
     }
 
     Ok(())
+}
+
+/// Returns the installed version
+#[async_recursion]
+pub async fn get_dependency_tree(ctx: &WaveContext, name: &str, version: &str) -> Result<String> {
+    let packument = registry::get_package_document(&ctx, &name).await?;
+    let version = version.to_string();
+    let version = packument.dist_tags.get(&version).unwrap_or(&version);
+    let semver_symbols: &[_] = &['^', '~'];
+    let version = version.trim_start_matches(semver_symbols);
+    println!("{}", version);
+    let package_metadata = packument.versions.get(version);
+    if let Some(package_metadata) = package_metadata {
+        let bytes = get_package_tarball(&ctx, &package_metadata.dist.tarball).await?;
+        let mut archive = decode_tarball(bytes);
+        save_package_in_node_modules(&name, &mut archive)?;
+        if let Some(dependencies) = &package_metadata.dependencies {
+            for (name, version) in dependencies {
+                get_dependency_tree(&ctx, &name, &version).await?;
+            }
+        }
+        Ok(package_metadata.version.clone())
+    } else {
+        anyhow::bail!("Couldn't get package metadata");
+    }
 }
