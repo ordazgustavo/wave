@@ -18,34 +18,44 @@ pub async fn add(
     packages: Vec<(String, String)>,
     flags: AddFlags,
 ) -> Result<()> {
-    let mut updated_versions = BTreeMap::new();
+    let mut installed_deps = Vec::new();
     for (name, version) in packages.into_iter() {
-        let installed_version = utils::get_dependency_tree(&ctx, &name, &version).await?;
-        updated_versions.insert(name, installed_version);
+        installed_deps.push(utils::get_dependency_tree(&ctx, &name, &version).await?);
     }
 
     let package_path = Path::new("package.json");
     let package = cat(package_path)?;
     let mut package = Package::from_json(&package)?;
+    let updated_versions = installed_deps.iter().fold(BTreeMap::new(), |mut acc, x| {
+        acc.insert(x.name.clone(), x.version.clone());
+        acc
+    });
 
     if flags.development {
-        if let Some(mut prev_deps) = package.dev_dependencies {
-            prev_deps.extend(updated_versions);
-            package.dev_dependencies = Some(prev_deps);
-        } else {
-            package.dev_dependencies = Some(updated_versions);
+        package.dev_dependencies = match package.dev_dependencies {
+            Some(mut prev) => {
+                prev.extend(updated_versions);
+                Some(prev)
+            }
+            None => Some(updated_versions),
         }
     } else {
-        if let Some(mut prev_deps) = package.dependencies {
-            prev_deps.extend(updated_versions);
-            package.dependencies = Some(prev_deps);
-        } else {
-            package.dependencies = Some(updated_versions);
+        package.dependencies = match package.dependencies {
+            Some(mut prev) => {
+                prev.extend(updated_versions);
+                Some(prev)
+            }
+            None => Some(updated_versions),
         }
     }
 
     let package_json = package.to_json()?;
     echo(&package_json, package_path)?;
+
+    let resolved_packages =
+        utils::flatten_deps(&installed_deps.iter().map(|d| Box::new(d.clone())).collect());
+    utils::update_node_modules(&ctx, &resolved_packages).await?;
+    utils::save_lockfile(resolved_packages)?;
 
     logger::success(&ctx, "Saved package.json")
 }
