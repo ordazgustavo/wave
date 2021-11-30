@@ -29,40 +29,59 @@ pub async fn get_dependency_tree(
     name: &str,
     version: &str,
 ) -> Result<DependencyTree> {
-    let packument = registry::get_package_document(&ctx, &name).await?;
-    let version = version.to_string();
-    let version = packument.dist_tags.get(&version).unwrap_or(&version);
-    let version: Range = version.parse()?;
-    let version = packument
-        .versions
-        .keys()
-        .filter(|v| version.satisfies(&v.parse().expect("")))
-        .max_by(|a, b| {
-            let a: Version = a.parse().expect("");
-            let b: Version = b.parse().expect("");
-            a.cmp(&b)
-        });
+    let lockfile = WaveLockfile::read();
+    let locked_package = lockfile.and_then(|lockfile| lockfile.get_package(name, version));
 
-    match version {
-        Some(version) => match packument.versions.get(version) {
-            Some(package_metadata) => {
-                let mut deps = Vec::new();
-                if let Some(dependencies) = &package_metadata.dependencies {
-                    for (name, version) in dependencies {
-                        deps.push(Box::new(get_dependency_tree(&ctx, &name, &version).await?));
-                    }
-                }
-                Ok(DependencyTree {
-                    name: package_metadata.name.clone(),
-                    version: package_metadata.version.clone(),
-                    resolved: package_metadata.dist.tarball.clone(),
-                    integrity: package_metadata.dist.integrity.clone(),
-                    dependencies: deps,
-                })
+    if let Some(pkg) = locked_package {
+        let mut deps = Vec::new();
+        if let Some(dependencies) = pkg.dependencies {
+            for (name, version) in dependencies {
+                deps.push(Box::new(get_dependency_tree(&ctx, &name, &version).await?));
             }
+        }
+        Ok(DependencyTree {
+            name: name.to_owned(),
+            version: pkg.version,
+            resolved: pkg.resolved,
+            integrity: pkg.integrity,
+            dependencies: deps,
+        })
+    } else {
+        let packument = registry::get_package_document(&ctx, &name).await?;
+        let version = version.to_string();
+        let version = packument.dist_tags.get(&version).unwrap_or(&version);
+        let version: Range = version.parse()?;
+        let version = packument
+            .versions
+            .keys()
+            .filter(|v| version.satisfies(&v.parse().expect("")))
+            .max_by(|a, b| {
+                let a: Version = a.parse().expect("");
+                let b: Version = b.parse().expect("");
+                a.cmp(&b)
+            });
+
+        match version {
+            Some(version) => match packument.versions.get(version) {
+                Some(package_metadata) => {
+                    let mut deps = Vec::new();
+                    if let Some(dependencies) = &package_metadata.dependencies {
+                        for (name, version) in dependencies {
+                            deps.push(Box::new(get_dependency_tree(&ctx, &name, &version).await?));
+                        }
+                    }
+                    Ok(DependencyTree {
+                        name: package_metadata.name.clone(),
+                        version: package_metadata.version.clone(),
+                        resolved: package_metadata.dist.tarball.clone(),
+                        integrity: package_metadata.dist.integrity.clone(),
+                        dependencies: deps,
+                    })
+                }
+                None => anyhow::bail!("Couldn't get package metadata"),
+            },
             None => anyhow::bail!("Couldn't get package metadata"),
-        },
-        None => anyhow::bail!("Couldn't get package metadata"),
+        }
     }
 }
 
@@ -89,7 +108,10 @@ pub fn flatten_deps(dependency_tree: &Vec<Box<DependencyTree>>) -> ResolvedPacka
                 resolved: x.resolved.clone(),
                 integrity: x.integrity.clone(),
                 dependencies: if x.dependencies.len() > 0 {
-                    Some(x.dependencies.iter().map(|d| d.name.clone()).collect())
+                    Some(x.dependencies.iter().fold(BTreeMap::new(), |mut acc, d| {
+                        acc.insert(d.name.clone(), d.version.clone());
+                        acc
+                    }))
                 } else {
                     None
                 },
