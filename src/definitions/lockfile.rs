@@ -1,10 +1,8 @@
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
 use anyhow::{Context, Result};
 use node_semver::{Range, Version};
 use serde::{Deserialize, Serialize};
-
-use crate::fs;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct WaveLockfile {
@@ -41,7 +39,7 @@ impl WaveLockfile {
 
     pub fn read() -> Option<Self> {
         if Self::is_defined() {
-            match fs::cat(Self::location()).ok() {
+            match fs::read_to_string(Self::location()).ok() {
                 Some(lockfile) => Self::from_json(&lockfile).ok(),
                 None => None,
             }
@@ -58,11 +56,7 @@ impl WaveLockfile {
                 .ok()
                 .and_then(|range| {
                     version.parse::<Version>().ok().and_then(|version| {
-                        if range.satisfies(&version) {
-                            Some(locked_package.clone())
-                        } else {
-                            None
-                        }
+                        range.satisfies(&version).then(|| locked_package.clone())
                     })
                 })
         })

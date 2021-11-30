@@ -1,12 +1,8 @@
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
 use anyhow::Result;
 
-use crate::{
-    definitions::Package,
-    fs::{cat, echo},
-    logger, utils, WaveContext,
-};
+use crate::{definitions::Package, logger, utils, WaveContext};
 
 pub struct AddFlags {
     pub development: bool,
@@ -24,7 +20,7 @@ pub async fn add(
     }
 
     let package_path = Path::new("package.json");
-    let package = cat(package_path)?;
+    let package = fs::read_to_string(package_path)?;
     let mut package = Package::from_json(&package)?;
     let updated_versions = installed_deps.iter().fold(BTreeMap::new(), |mut acc, x| {
         acc.insert(x.name.clone(), x.version.clone());
@@ -50,7 +46,7 @@ pub async fn add(
     }
 
     let package_json = package.to_json()?;
-    echo(&package_json, package_path)?;
+    fs::write(package_path, &package_json)?;
 
     let resolved_packages = utils::flatten_deps(&installed_deps);
     utils::update_node_modules(ctx, &resolved_packages).await?;

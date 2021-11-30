@@ -35,8 +35,8 @@ pub enum Command {
 
 fn parse_key_val(s: &str) -> (String, String) {
     if let Some((key, val)) = s.rsplit_once('@') {
-        (key.to_string(), val.to_string())
+        (key.to_owned(), val.to_owned())
     } else {
-        (s.to_string(), "latest".to_string())
+        (s.to_owned(), "latest".to_owned())
     }
 }

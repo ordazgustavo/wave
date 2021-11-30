@@ -67,7 +67,7 @@ impl FromStr for Person {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            name: s.to_string(),
+            name: s.to_owned(),
             email: None,
             url: None,
         })

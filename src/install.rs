@@ -1,12 +1,11 @@
-use std::path::Path;
+use std::fs;
 
 use anyhow::Result;
 
-use crate::{definitions::Package, fs::cat, utils, WaveContext};
+use crate::{definitions::Package, utils, WaveContext};
 
 pub async fn install(ctx: &WaveContext) -> Result<()> {
-    let package_path = Path::new("package.json");
-    let package = cat(package_path)?;
+    let package = fs::read_to_string("package.json")?;
     let package = Package::from_json(&package)?;
 
     let mut installed_deps = Vec::new();

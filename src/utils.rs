@@ -1,7 +1,6 @@
-use std::path::Path;
-use std::{collections::BTreeMap, fs};
+use std::{collections::BTreeMap, env, fs, path::Path};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_recursion::async_recursion;
 use bytes::{buf::Reader, Buf, Bytes};
 use flate2::read::GzDecoder;
@@ -10,7 +9,6 @@ use tar::Archive;
 
 use crate::{
     definitions::{ResolvedPackage, ResolvedPackages, WaveLockfile},
-    fs::{cat, echo},
     registry, WaveContext,
 };
 
@@ -48,7 +46,7 @@ pub async fn get_dependency_tree(
         })
     } else {
         let packument = registry::get_package_document(ctx, name).await?;
-        let version = version.to_string();
+        let version = version.to_owned();
         let version = packument.dist_tags.get(&version).unwrap_or(&version);
         let version: Range = version.parse()?;
         let version = packument
@@ -88,14 +86,14 @@ pub async fn get_dependency_tree(
 pub fn save_lockfile(resolved_packages: ResolvedPackages) -> Result<()> {
     let path = WaveLockfile::location();
     let lockfile = if WaveLockfile::is_defined() {
-        let lockfile = cat(path)?;
+        let lockfile = fs::read_to_string(path)?;
         let mut lockfile = WaveLockfile::from_json(&lockfile)?;
         lockfile.packages.extend(resolved_packages);
         lockfile
     } else {
         WaveLockfile::new(resolved_packages)
     };
-    echo(&lockfile.to_json()?, path)?;
+    fs::write(path, lockfile.to_json()?)?;
     Ok(())
 }
 
@@ -170,4 +168,10 @@ where
     }
 
     Ok(())
+}
+
+pub fn cwd() -> Result<String> {
+    let path = env::current_dir().context("Couldn't get cwd")?;
+    let dir = path.file_name().context("Couldn't get cwd")?;
+    Ok(dir.to_str().context("Couldn't get cwd")?.to_owned())
 }

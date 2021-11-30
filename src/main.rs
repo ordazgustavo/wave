@@ -5,7 +5,6 @@ use console::Term;
 mod add;
 mod cli;
 mod definitions;
-mod fs;
 mod init;
 mod install;
 mod logger;
@@ -41,7 +40,7 @@ async fn main(args: Wave) -> anyhow::Result<()> {
                 exact,
                 packages,
             } => add(&ctx, packages, AddFlags { development, exact }).await?,
-            _ => todo!(),
+            Command::List { .. } | Command::Uninstall { .. } => todo!(),
         },
         None => install(&ctx).await?,
     };
