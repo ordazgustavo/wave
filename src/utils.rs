@@ -20,7 +20,7 @@ pub struct DependencyTree {
     pub version: String,
     pub resolved: String,
     pub integrity: Option<String>,
-    pub dependencies: Vec<Box<DependencyTree>>,
+    pub dependencies: Vec<DependencyTree>,
 }
 
 #[async_recursion]
@@ -36,7 +36,7 @@ pub async fn get_dependency_tree(
         let mut deps = Vec::new();
         if let Some(dependencies) = pkg.dependencies {
             for (name, version) in dependencies {
-                deps.push(Box::new(get_dependency_tree(&ctx, &name, &version).await?));
+                deps.push(get_dependency_tree(ctx, &name, &version).await?);
             }
         }
         Ok(DependencyTree {
@@ -47,7 +47,7 @@ pub async fn get_dependency_tree(
             dependencies: deps,
         })
     } else {
-        let packument = registry::get_package_document(&ctx, &name).await?;
+        let packument = registry::get_package_document(ctx, name).await?;
         let version = version.to_string();
         let version = packument.dist_tags.get(&version).unwrap_or(&version);
         let version: Range = version.parse()?;
@@ -67,7 +67,7 @@ pub async fn get_dependency_tree(
                     let mut deps = Vec::new();
                     if let Some(dependencies) = &package_metadata.dependencies {
                         for (name, version) in dependencies {
-                            deps.push(Box::new(get_dependency_tree(&ctx, &name, &version).await?));
+                            deps.push(get_dependency_tree(ctx, name, version).await?);
                         }
                     }
                     Ok(DependencyTree {
@@ -87,19 +87,19 @@ pub async fn get_dependency_tree(
 
 pub fn save_lockfile(resolved_packages: ResolvedPackages) -> Result<()> {
     let path = WaveLockfile::location();
-    let lockfile = if !WaveLockfile::is_defined() {
-        WaveLockfile::new(resolved_packages)
-    } else {
+    let lockfile = if WaveLockfile::is_defined() {
         let lockfile = cat(path)?;
         let mut lockfile = WaveLockfile::from_json(&lockfile)?;
         lockfile.packages.extend(resolved_packages);
         lockfile
+    } else {
+        WaveLockfile::new(resolved_packages)
     };
     echo(&lockfile.to_json()?, path)?;
     Ok(())
 }
 
-pub fn flatten_deps(dependency_tree: &Vec<Box<DependencyTree>>) -> ResolvedPackages {
+pub fn flatten_deps(dependency_tree: &[DependencyTree]) -> ResolvedPackages {
     dependency_tree.iter().fold(BTreeMap::new(), |mut acc, x| {
         acc.insert(
             x.name.clone(),
@@ -107,13 +107,13 @@ pub fn flatten_deps(dependency_tree: &Vec<Box<DependencyTree>>) -> ResolvedPacka
                 version: x.version.clone(),
                 resolved: x.resolved.clone(),
                 integrity: x.integrity.clone(),
-                dependencies: if x.dependencies.len() > 0 {
+                dependencies: if x.dependencies.is_empty() {
+                    None
+                } else {
                     Some(x.dependencies.iter().fold(BTreeMap::new(), |mut acc, d| {
                         acc.insert(d.name.clone(), d.version.clone());
                         acc
                     }))
-                } else {
-                    None
                 },
             },
         );
@@ -128,9 +128,9 @@ pub async fn update_node_modules(
     resolved_packages: &ResolvedPackages,
 ) -> Result<()> {
     for (name, pkg) in resolved_packages.iter() {
-        let bytes = get_package_tarball(&ctx, &pkg.resolved).await?;
+        let bytes = get_package_tarball(ctx, &pkg.resolved).await?;
         let mut archive = decode_tarball(bytes);
-        save_package_in_node_modules(&name, &mut archive).expect("");
+        save_package_in_node_modules(name, &mut archive).expect("");
     }
     Ok(())
 }
@@ -158,7 +158,7 @@ where
     }
     fs::create_dir_all(dest)?;
 
-    for mut entry in archive.entries()?.filter_map(|e| e.ok()).into_iter() {
+    for mut entry in archive.entries()?.filter_map(|e| e.ok()) {
         let path = entry.path()?.strip_prefix(prefix)?.to_owned();
         let path = dest.join(path);
         if let Some(parent) = path.parent() {

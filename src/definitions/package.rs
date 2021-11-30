@@ -66,7 +66,7 @@ impl FromStr for Person {
     type Err = Void;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Person {
+        Ok(Self {
             name: s.to_string(),
             email: None,
             url: None,

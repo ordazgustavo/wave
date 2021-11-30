@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 
 use crate::{definitions::Packument, WaveContext};
 
-static ENDPOINT: &'static str = "https://registry.npmjs.org";
+static ENDPOINT: &str = "https://registry.npmjs.org";
 
 pub async fn get_package_document(ctx: &WaveContext, name: &str) -> Result<Packument> {
     let package = ctx

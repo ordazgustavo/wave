@@ -41,8 +41,8 @@ impl WaveLockfile {
 
     pub fn read() -> Option<Self> {
         if Self::is_defined() {
-            match fs::cat(WaveLockfile::location()).ok() {
-                Some(lockfile) => WaveLockfile::from_json(&lockfile).ok(),
+            match fs::cat(Self::location()).ok() {
+                Some(lockfile) => Self::from_json(&lockfile).ok(),
                 None => None,
             }
         } else {

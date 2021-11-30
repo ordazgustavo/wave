@@ -34,7 +34,7 @@ async fn main(args: Wave) -> anyhow::Result<()> {
 
     match cmd {
         Some(cmd) => match cmd {
-            Command::Init { yes, name } => init(&ctx, name, InitFlags { yes })?,
+            Command::Init { yes, name } => init(&ctx, name, &InitFlags { yes })?,
             Command::Install => install(&ctx).await?,
             Command::Add {
                 development,

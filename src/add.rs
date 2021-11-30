@@ -19,8 +19,8 @@ pub async fn add(
     flags: AddFlags,
 ) -> Result<()> {
     let mut installed_deps = Vec::new();
-    for (name, version) in packages.into_iter() {
-        installed_deps.push(utils::get_dependency_tree(&ctx, &name, &version).await?);
+    for (name, version) in packages {
+        installed_deps.push(utils::get_dependency_tree(ctx, &name, &version).await?);
     }
 
     let package_path = Path::new("package.json");
@@ -52,10 +52,9 @@ pub async fn add(
     let package_json = package.to_json()?;
     echo(&package_json, package_path)?;
 
-    let resolved_packages =
-        utils::flatten_deps(&installed_deps.iter().map(|d| Box::new(d.clone())).collect());
-    utils::update_node_modules(&ctx, &resolved_packages).await?;
+    let resolved_packages = utils::flatten_deps(&installed_deps);
+    utils::update_node_modules(ctx, &resolved_packages).await?;
     utils::save_lockfile(resolved_packages)?;
 
-    logger::success(&ctx, "Saved package.json")
+    logger::success(ctx, "Saved package.json")
 }
