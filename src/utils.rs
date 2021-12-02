@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, env, fs, path::Path};
+use std::{
+    collections::{BTreeMap, HashMap},
+    env, fs,
+    path::Path,
+};
 
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
@@ -18,6 +22,7 @@ pub struct DependencyTree {
     pub version: String,
     pub resolved: String,
     pub integrity: Option<String>,
+    pub symlinks: Option<HashMap<String, String>>,
     pub dependencies: Vec<DependencyTree>,
 }
 
@@ -42,6 +47,7 @@ pub async fn get_dependency_tree(
             version: pkg.version,
             resolved: pkg.resolved,
             integrity: pkg.integrity,
+            symlinks: None,
             dependencies: deps,
         })
     } else {
@@ -73,6 +79,7 @@ pub async fn get_dependency_tree(
                         version: package_metadata.version.clone(),
                         resolved: package_metadata.dist.tarball.clone(),
                         integrity: package_metadata.dist.integrity.clone(),
+                        symlinks: package_metadata.bin.clone(),
                         dependencies: deps,
                     })
                 }
@@ -121,14 +128,18 @@ pub fn flatten_deps(dependency_tree: &[DependencyTree]) -> ResolvedPackages {
     })
 }
 
+#[async_recursion]
 pub async fn update_node_modules(
     ctx: &WaveContext,
-    resolved_packages: &ResolvedPackages,
+    dependency_tree: &[DependencyTree],
 ) -> Result<()> {
-    for (name, pkg) in resolved_packages.iter() {
+    for pkg in dependency_tree {
+        if !pkg.dependencies.is_empty() {
+            update_node_modules(ctx, &pkg.dependencies).await?;
+        }
         let bytes = get_package_tarball(ctx, &pkg.resolved).await?;
         let mut archive = decode_tarball(bytes);
-        save_package_in_node_modules(name, &mut archive).expect("");
+        save_package_in_node_modules(&pkg.name, &mut archive, &pkg.symlinks)?;
     }
     Ok(())
 }
@@ -142,18 +153,35 @@ pub fn decode_tarball(bytes: Bytes) -> Archive<GzDecoder<Reader<Bytes>>> {
     Archive::new(tar)
 }
 
-pub fn save_package_in_node_modules<T>(name: &str, archive: &mut Archive<T>) -> Result<()>
+pub fn save_package_in_node_modules<T>(
+    name: &str,
+    archive: &mut Archive<T>,
+    symlinks: &Option<HashMap<String, String>>,
+) -> Result<()>
 where
     T: std::io::Read,
 {
     // The folder name of the unpacked tarball
     let prefix = "package";
     let node_modules = format!("node_modules/{}", name);
+    let bin_folder = Path::new("node_modules/.bin");
     let dest = Path::new(&node_modules);
+    let has_symlinks = symlinks.is_some();
+
+    // First remove previous symlinks
+    if has_symlinks {
+        for k in symlinks.as_ref().unwrap().keys() {
+            let file = bin_folder.join(k);
+            file.exists().then(|| fs::remove_file(file));
+        }
+    }
+
     // Remove the previous module if it already exists
     if dest.exists() {
         fs::remove_dir_all(dest)?;
     }
+
+    // Create package node_modules destination
     fs::create_dir_all(dest)?;
 
     for mut entry in archive.entries()?.filter_map(|e| e.ok()) {
@@ -165,6 +193,24 @@ where
             }
         }
         entry.unpack(path)?;
+    }
+
+    // Create .bin folder
+    if !bin_folder.exists() {
+        fs::create_dir_all(bin_folder)?;
+    }
+
+    // Recreate symlinks
+    if has_symlinks {
+        for (k, v) in symlinks.as_ref().unwrap() {
+            let origin = pathdiff::diff_paths(dest.join(v), bin_folder);
+            let destination = bin_folder.join(k);
+            if let Some(origin) = origin {
+                if !destination.exists() {
+                    symlink::symlink_file(origin, destination).context("Creating symlink")?;
+                }
+            }
+        }
     }
 
     Ok(())

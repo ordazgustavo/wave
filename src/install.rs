@@ -21,8 +21,8 @@ pub async fn install(ctx: &WaveContext) -> Result<()> {
         }
     }
 
+    utils::update_node_modules(ctx, &installed_deps).await?;
     let resolved_packages = utils::flatten_deps(&installed_deps);
-    utils::update_node_modules(ctx, &resolved_packages).await?;
     utils::save_lockfile(resolved_packages)?;
 
     Ok(())

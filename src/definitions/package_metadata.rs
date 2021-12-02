@@ -7,6 +7,7 @@ pub struct PackageMetadata {
     pub name: String,
     pub version: String,
     pub dependencies: Option<HashMap<String, String>>,
+    pub bin: Option<HashMap<String, String>>,
     pub dist: Dist,
 }
 

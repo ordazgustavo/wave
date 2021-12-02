@@ -48,8 +48,8 @@ pub async fn add(
     let package_json = package.to_json()?;
     fs::write(package_path, &package_json)?;
 
+    utils::update_node_modules(ctx, &installed_deps).await?;
     let resolved_packages = utils::flatten_deps(&installed_deps);
-    utils::update_node_modules(ctx, &resolved_packages).await?;
     utils::save_lockfile(resolved_packages)?;
 
     logger::success(ctx, "Saved package.json")
